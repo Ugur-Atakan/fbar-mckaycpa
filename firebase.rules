@@ -1,0 +1,13 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /fbar_submissions/{submission} {
+      // Allow anyone to submit forms
+      allow create: if true;
+      
+      // Allow authenticated users to read, update, and delete submissions
+      allow read, update, delete: if request.auth != null;
+    }
+  }
+}

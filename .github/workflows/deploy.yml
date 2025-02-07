@@ -1,0 +1,67 @@
+name: Deploy Vite Build to Production Branch
+
+on:
+  push:
+    branches:
+      - main  # Eğer main branch'e push olduğunda çalışmasını istiyorsan
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodu Checkout Et
+        uses: actions/checkout@v3
+
+      - name: Node.js Kurulumu (21 Sürümü)
+        uses: actions/setup-node@v3
+        with:
+          node-version: 21
+          cache: 'npm'
+
+      - name: Bağımlılıkları Kur ve Build Al
+        run: |
+          npm install
+          npm run build
+
+      - name: Production Branch’ini Güncelle
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}  # PAT Kullanıyoruz
+        run: |
+          git config --global user.name "${{ github.actor }}"  
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+
+          if [ ! -d "dist" ]; then
+            echo "❌ Build klasörü bulunamadı! Vite build işlemi başarısız oldu mu?"
+            exit 1
+          fi
+
+          # Production branch olup olmadığını kontrol et, varsa pull yap yoksa oluştur
+          if git ls-remote --exit-code origin production; then
+            echo "✅ Production branch mevcut, güncelleniyor..."
+            git fetch origin production
+            git checkout production
+            git pull origin production
+          else
+            echo "🚀 Production branch bulunamadı, oluşturuluyor..."
+            git checkout --orphan production
+            git commit --allow-empty -m "Initial empty commit for production"
+            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git production
+          fi
+          
+          # Önce dist klasörünü geçici olarak sakla
+          mv dist /tmp/dist_backup
+
+          # Diğer dosyaları temizle ama dist klasörü silinmemiş olur
+          rm -rf * 
+
+          # dist klasörünü geri taşı
+          mv /tmp/dist_backup/* .
+
+          # dist klasörünü temizle (isteğe bağlı)
+          rm -rf /tmp/dist_backup
+
+          git add .
+          git commit -m "Güncellenmiş Vite Build - $(date)"
+
+          # GitHub Actions Token kullanarak push yap
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git production --force

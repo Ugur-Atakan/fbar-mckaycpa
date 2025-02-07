@@ -25,7 +25,7 @@ jobs:
 
       - name: Production Branch’ini Güncelle
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}  # Token'ı kullanıyoruz!
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}  # GitHub Actions Token kullanıyoruz
         run: |
           git config --global user.name "${{ github.actor }}"  
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
@@ -35,8 +35,18 @@ jobs:
             exit 1
           fi
 
-          git fetch origin production || git checkout --orphan production  # Eğer branch yoksa oluştur
-          git checkout production
+          # Production branch olup olmadığını kontrol et, varsa pull yap yoksa oluştur
+          if git ls-remote --exit-code origin production; then
+            echo "✅ Production branch mevcut, güncelleniyor..."
+            git fetch origin production
+            git checkout production
+            git pull origin production
+          else
+            echo "🚀 Production branch bulunamadı, oluşturuluyor..."
+            git checkout --orphan production
+            git commit --allow-empty -m "Initial empty commit for production"
+            git push origin production
+          fi
           
           # Önce dist klasörünü geçici olarak sakla
           mv dist /tmp/dist_backup

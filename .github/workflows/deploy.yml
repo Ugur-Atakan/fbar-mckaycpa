@@ -24,6 +24,8 @@ jobs:
           npm run build
 
       - name: Production Branch’ini Güncelle
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}  # Token'ı kullanıyoruz!
         run: |
           git config --global user.name "${{ github.actor }}"  
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
@@ -33,16 +35,9 @@ jobs:
             exit 1
           fi
 
-          # Production branch olup olmadığını kontrol et
-          if git show-ref --verify --quiet refs/heads/production; then
-            echo "✅ Production branch mevcut, güncelleniyor..."
-            git checkout production
-            git pull origin production  # Branch'i güncelle
-          else
-            echo "🚀 Production branch bulunamadı, oluşturuluyor..."
-            git checkout --orphan production
-          fi
-
+          git fetch origin production || git checkout --orphan production  # Eğer branch yoksa oluştur
+          git checkout production
+          
           # Önce dist klasörünü geçici olarak sakla
           mv dist /tmp/dist_backup
 
@@ -57,4 +52,6 @@ jobs:
 
           git add .
           git commit -m "Güncellenmiş Vite Build - $(date)"
-          git push -u origin production
+
+          # GitHub Actions Token kullanarak push yap
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git production --force

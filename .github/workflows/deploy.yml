@@ -12,42 +12,43 @@ jobs:
       - name: Kodu Checkout Et
         uses: actions/checkout@v3
 
-      - name: Node.js Kurulumu
+      - name: Node.js Kurulumu (21 Sürümü)
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 21
+          cache: 'npm'
 
       - name: Bağımlılıkları Kur ve Build Al
         run: |
           npm install
+          npm audit fix --force  # Güvenlik güncellemelerini otomatik yap
           npm run build
 
-          - name: Production Branch’ini Güncelle
-          run: |
-            git config --global user.name "${{ github.actor }}"  
-            git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-  
-            if [ ! -d "dist" ]; then
-              echo "❌ Build klasörü bulunamadı! Vite build işlemi başarısız oldu mu?"
-              exit 1
-            fi
-  
-            git fetch origin production
-            git checkout production
-  
-            # Önce dist klasörünü geçici olarak sakla
-            mv dist /tmp/dist_backup
-  
-            # Diğer dosyaları temizle ama dist klasörü silinmemiş olur
-            rm -rf * 
-  
-            # dist klasörünü geri taşı
-            mv /tmp/dist_backup/* .
-  
-            # dist klasörünü temizle (isteğe bağlı)
-            rm -rf /tmp/dist_backup
-  
-            git add .
-            git commit -m "Güncellenmiş Vite Build - $(date)"
-            git push origin production
-  
+      - name: Production Branch’ini Güncelle
+        run: |
+          git config --global user.name "${{ github.actor }}"  
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+
+          if [ ! -d "dist" ]; then
+            echo "❌ Build klasörü bulunamadı! Vite build işlemi başarısız oldu mu?"
+            exit 1
+          fi
+          
+          git fetch origin production
+          git checkout production
+
+          # Önce dist klasörünü geçici olarak sakla
+          mv dist /tmp/dist_backup
+
+          # Diğer dosyaları temizle ama dist klasörü silinmemiş olur
+          rm -rf * 
+
+          # dist klasörünü geri taşı
+          mv /tmp/dist_backup/* .
+
+          # dist klasörünü temizle (isteğe bağlı)
+          rm -rf /tmp/dist_backup
+
+          git add .
+          git commit -m "Güncellenmiş Vite Build - $(date)"  # Buradaki hata düzeltildi!
+          git push origin production

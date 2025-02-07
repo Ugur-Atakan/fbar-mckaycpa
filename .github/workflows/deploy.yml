@@ -22,18 +22,25 @@ jobs:
           npm install
           npm run build
 
-      - name: Build Klasörünü `production` Branch'ine Aktar
+      - name: Production Branch’ini Güncelle
         run: |
-          git config --global user.name "${{ github.actor }}"  # Workflow'u çalıştıran kişinin ismini alır
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"  # Kullanıcı e-postasını anonimleştirir
+          git config --global user.name "${{ github.actor }}"  
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
           
-          git checkout --orphan production  # Yeni bir production branch oluştur
-          git reset --hard
-          git clean -fd
-          mv dist/* .  # Eğer build çıktısını farklı bir yere alıyorsan burayı güncelle
-          rm -rf dist
+          git fetch origin production  # Production branch’ini al
+          git checkout production  # Branch'e geç
           
-          echo "Production branch'e deploy ediliyor..."
+          # Eğer dist klasörü yoksa hata verme
+          if [ ! -d "dist" ]; then
+            echo "❌ Build klasörü bulunamadı! Vite build işlemi başarısız oldu mu?"
+            exit 1
+          fi
+          
+          rm -rf *  # Eski build dosyalarını temizle (Eğer diğer dosyaları korumak istiyorsan kaldır)
+          mv dist/* .  # Yeni build dosyalarını taşı
+          rm -rf dist  # dist klasörünü temizle
+          
           git add .
-          git commit -m "Deploy to production branch"
-          git push --force origin production
+          git commit -m "Güncellenmiş Vite Build - $(date)"
+          git push origin production
+

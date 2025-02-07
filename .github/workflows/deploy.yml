@@ -25,7 +25,7 @@ jobs:
 
       - name: Production Branch’ini Güncelle
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}  # GitHub Actions Token kullanıyoruz
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}  # PAT Kullanıyoruz
         run: |
           git config --global user.name "${{ github.actor }}"  
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
@@ -45,7 +45,7 @@ jobs:
             echo "🚀 Production branch bulunamadı, oluşturuluyor..."
             git checkout --orphan production
             git commit --allow-empty -m "Initial empty commit for production"
-            git push origin production
+            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git production
           fi
           
           # Önce dist klasörünü geçici olarak sakla

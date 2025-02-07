@@ -32,9 +32,16 @@ jobs:
             echo "❌ Build klasörü bulunamadı! Vite build işlemi başarısız oldu mu?"
             exit 1
           fi
-          
-          git fetch origin production
-          git checkout production
+
+          # Production branch olup olmadığını kontrol et
+          if git show-ref --verify --quiet refs/heads/production; then
+            echo "✅ Production branch mevcut, güncelleniyor..."
+            git checkout production
+            git pull origin production  # Branch'i güncelle
+          else
+            echo "🚀 Production branch bulunamadı, oluşturuluyor..."
+            git checkout --orphan production
+          fi
 
           # Önce dist klasörünü geçici olarak sakla
           mv dist /tmp/dist_backup
@@ -49,5 +56,5 @@ jobs:
           rm -rf /tmp/dist_backup
 
           git add .
-          git commit -m "Güncellenmiş Vite Build - $(date)"  # Buradaki hata düzeltildi!
-          git push origin production
+          git commit -m "Güncellenmiş Vite Build - $(date)"
+          git push -u origin production

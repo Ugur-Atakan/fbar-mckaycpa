@@ -21,7 +21,6 @@ jobs:
       - name: Bağımlılıkları Kur ve Build Al
         run: |
           npm install
-          npm audit fix --force  # Güvenlik güncellemelerini otomatik yap
           npm run build
 
       - name: Production Branch’ini Güncelle

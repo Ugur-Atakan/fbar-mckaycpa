@@ -49,6 +49,17 @@ const currencies = [
   { code: 'CAD', name: 'Canadian Dollar' }
 ];
 
+// Function to convert Turkish characters to non-accented equivalents
+const convertTurkishToEnglish = (text: string): string => {
+  const turkishChars: { [key: string]: string } = {
+    'ı': 'i', 'İ': 'I', 'ğ': 'g', 'Ğ': 'G',
+    'ü': 'u', 'Ü': 'U', 'ş': 's', 'Ş': 'S',
+    'ö': 'o', 'Ö': 'O', 'ç': 'c', 'Ç': 'C'
+  };
+  
+  return text.replace(/[ıİğĞüÜşŞöÖçÇ]/g, letter => turkishChars[letter] || letter);
+};
+
 function FBARForm() {
   const navigate = useNavigate();
   const [companyName, setCompanyName] = useState('');
@@ -120,8 +131,8 @@ function FBARForm() {
                     prevAccount.id === account.id 
                       ? { 
                           ...prevAccount, 
-                          institutionName: place.name || '',
-                          mailingAddress: place.formatted_address || ''
+                          institutionName: convertTurkishToEnglish(place.name || ''),
+                          mailingAddress: convertTurkishToEnglish(place.formatted_address || '')
                         }
                       : prevAccount
                   )
@@ -173,6 +184,11 @@ function FBARForm() {
           );
         }
         
+        // Convert Turkish characters when updating institution name or address manually
+        if (field === 'institutionName' || field === 'mailingAddress') {
+          updatedAccount[field] = convertTurkishToEnglish(value as string);
+        }
+        
         return updatedAccount;
       }
       return account;
@@ -207,8 +223,12 @@ function FBARForm() {
 
     try {
       const submissionData = {
-        companyName,
-        accounts,
+        companyName: convertTurkishToEnglish(companyName),
+        accounts: accounts.map(account => ({
+          ...account,
+          institutionName: convertTurkishToEnglish(account.institutionName),
+          mailingAddress: convertTurkishToEnglish(account.mailingAddress)
+        })),
         submittedAt: new Date(),
         status: 'pending'
       };

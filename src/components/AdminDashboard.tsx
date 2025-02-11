@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
+import { signOut, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { auth, db } from '../firebase';
-import { Download, LogOut, Copy, CheckCircle, RefreshCw, ChevronDown, ChevronUp, Clock, Loader2, CheckCircle2, Search, Square, CheckSquare, Trash2 } from 'lucide-react';
+import { Download, LogOut, Copy, CheckCircle, RefreshCw, ChevronDown, ChevronUp, Clock, Loader2, 
+         CheckCircle2, Search, Square, CheckSquare, Trash2, Lock, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface Account {
@@ -25,7 +26,7 @@ interface Submission {
   status: 'pending' | 'in_progress' | 'completed';
 }
 
-export default function AdminDashboard() {
+function AdminDashboard() {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [expandedSubmission, setExpandedSubmission] = useState<string | null>(null);
@@ -34,6 +35,15 @@ export default function AdminDashboard() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [selectedSubmissions, setSelectedSubmissions] = useState<Set<string>>(new Set());
   const [deletingSubmission, setDeletingSubmission] = useState<string | null>(null);
+  
+  // Password change states
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -57,6 +67,72 @@ export default function AdminDashboard() {
 
     return () => unsubscribe();
   }, []);
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+    setChangingPassword(true);
+
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) {
+        setPasswordError('No user is currently signed in. Please sign in again.');
+        return;
+      }
+
+      // Validation checks
+      if (newPassword !== confirmPassword) {
+        setPasswordError('New passwords do not match');
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        setPasswordError('New password must be at least 6 characters long');
+        return;
+      }
+
+      if (newPassword === currentPassword) {
+        setPasswordError('New password must be different from current password');
+        return;
+      }
+
+      try {
+        // First try to reauthenticate
+        const credential = EmailAuthProvider.credential(user.email, currentPassword);
+        await reauthenticateWithCredential(user, credential);
+      } catch (error: any) {
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+          setPasswordError('Current password is incorrect');
+        } else {
+          console.error('Reauthentication error:', error);
+          setPasswordError('Error verifying current password. Please try again.');
+        }
+        return;
+      }
+
+      // If reauthentication successful, update password
+      try {
+        await updatePassword(user, newPassword);
+        setPasswordSuccess('Password successfully updated');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => {
+          setShowPasswordChange(false);
+          setPasswordSuccess('');
+        }, 2000);
+      } catch (error: any) {
+        console.error('Password update error:', error);
+        setPasswordError('Error updating password. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('Password change error:', error);
+      setPasswordError('An unexpected error occurred. Please try again.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   const filteredSubmissions = submissions.filter(submission => {
     const searchLower = searchQuery.toLowerCase();
@@ -187,14 +263,124 @@ export default function AdminDashboard() {
             alt="McKay & Co Logo" 
             className="h-12"
           />
-          <button
-            onClick={handleLogout}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800"
-          >
-            <LogOut className="h-5 w-5 mr-2" />
-            Sign Out
-          </button>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowPasswordChange(true)}
+              className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800"
+            >
+              <Lock className="h-5 w-5 mr-2" />
+              Change Password
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800"
+            >
+              <LogOut className="h-5 w-5 mr-2" />
+              Sign Out
+            </button>
+          </div>
         </div>
+
+        {/* Password Change Modal */}
+        {showPasswordChange && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+              <h2 className="text-2xl font-bold text-[#002F4A] mb-6">Change Password</h2>
+              
+              {passwordError && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-center text-red-800">
+                    <AlertCircle className="h-5 w-5 mr-2" />
+                    <span>{passwordError}</span>
+                  </div>
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
+                  <div className="flex items-center text-green-800">
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    <span>{passwordSuccess}</span>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-[#002F4A] focus:border-[#002F4A]"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-[#002F4A] focus:border-[#002F4A]"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-[#002F4A] focus:border-[#002F4A]"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordChange(false);
+                      setPasswordError('');
+                      setPasswordSuccess('');
+                      setCurrentPassword('');
+                      setNewPassword('');
+                      setConfirmPassword('');
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={changingPassword}
+                    className={`bg-[#002F4A] text-white px-4 py-2 rounded-md
+                              ${changingPassword ? 'opacity-75 cursor-not-allowed' : 'hover:bg-[#00304A]'}
+                              transition-colors duration-200`}
+                  >
+                    {changingPassword ? (
+                      <span className="flex items-center">
+                        <RefreshCw className="animate-spin -ml-1 mr-2 h-5 w-5" />
+                        Changing...
+                      </span>
+                    ) : (
+                      'Change Password'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-xl p-6">
           <div className="flex flex-col space-y-4 mb-6">
@@ -444,3 +630,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+export default AdminDashboard;

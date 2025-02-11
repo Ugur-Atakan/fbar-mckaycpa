@@ -20,7 +20,26 @@ export default function AdminLogin() {
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/admin/dashboard');
     } catch (error: any) {
-      setError(error.message);
+      // Provide user-friendly error messages
+      switch (error.code) {
+        case 'auth/invalid-credential':
+          setError('Email veya şifre hatalı. Lütfen bilgilerinizi kontrol edip tekrar deneyin.');
+          break;
+        case 'auth/invalid-email':
+          setError('Geçersiz email adresi. Lütfen doğru bir email adresi girin.');
+          break;
+        case 'auth/user-disabled':
+          setError('Bu hesap devre dışı bırakılmış. Lütfen yönetici ile iletişime geçin.');
+          break;
+        case 'auth/user-not-found':
+          setError('Bu email adresi ile kayıtlı bir hesap bulunamadı.');
+          break;
+        case 'auth/too-many-requests':
+          setError('Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.');
+          break;
+        default:
+          setError('Giriş yapılırken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -41,8 +60,8 @@ export default function AdminLogin() {
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
               <div className="flex items-center text-red-800">
-                <AlertCircle className="h-5 w-5 mr-2" />
-                <span>{error}</span>
+                <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                <span className="text-sm">{error}</span>
               </div>
             </div>
           )}
@@ -81,7 +100,7 @@ export default function AdminLogin() {
                        ${isLoading ? 'opacity-75 cursor-not-allowed' : 'hover:bg-[#00304A]'}
                        transition-colors duration-200`}
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
             </button>
           </form>
         </div>

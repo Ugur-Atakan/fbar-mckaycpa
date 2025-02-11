@@ -49,7 +49,6 @@ const currencies = [
   { code: 'CAD', name: 'Canadian Dollar' }
 ];
 
-// Function to convert Turkish characters to non-accented equivalents
 const convertTurkishToEnglish = (text: string): string => {
   const turkishChars: { [key: string]: string } = {
     'ı': 'i', 'İ': 'I', 'ğ': 'g', 'Ğ': 'G',
@@ -184,7 +183,6 @@ function FBARForm() {
           );
         }
         
-        // Convert Turkish characters when updating institution name or address manually
         if (field === 'institutionName' || field === 'mailingAddress') {
           updatedAccount[field] = convertTurkishToEnglish(value as string);
         }
@@ -204,21 +202,6 @@ function FBARForm() {
       setError('Please enter the company name.');
       setIsSubmitting(false);
       return;
-    }
-
-    if (!accounts.length) {
-      setError('Please add at least one account.');
-      setIsSubmitting(false);
-      return;
-    }
-
-    for (const account of accounts) {
-      if (!account.type || !account.currency || !account.accountNumber || 
-          !account.maxValue || !account.institutionName || !account.mailingAddress) {
-        setError('Please fill in all required fields for each account.');
-        setIsSubmitting(false);
-        return;
-      }
     }
 
     try {
@@ -436,7 +419,7 @@ function FBARForm() {
           </button>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
               <div className="flex items-center text-red-800">
                 <AlertCircle className="h-5 w-5 mr-2" />
                 <span>{error}</span>
@@ -456,7 +439,7 @@ function FBARForm() {
                         : 'hover:bg-[#00304A]'}`}
             >
               {isSubmitting ? (
-                <span className="flex items-center">
+                <span className="flex items-center justify-center">
                   <RefreshCw className="animate-spin -ml-1 mr-3 h-5 w-5" />
                   Submitting...
                 </span>

@@ -193,6 +193,13 @@ function FBARForm() {
     }));
   };
 
+  const handleInstitutionKeyDown = (e: React.KeyboardEvent) => {
+    // Prevent form submission when Enter is pressed in the autocomplete field
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -226,7 +233,7 @@ function FBARForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="container mx-auto px-4 py-8">
+    <form className="container mx-auto px-4 py-8" onSubmit={(e) => e.preventDefault()}>
       <div className="max-w-4xl mx-auto">
         <img 
           src="https://mckaycpa.com/wp-content/uploads/2024/04/mckay-logo-1.png" 
@@ -241,7 +248,7 @@ function FBARForm() {
             <h2 className="text-xl font-semibold text-[#111828] mb-4">Company Information</h2>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Company Name
+              Company/Individual Name
               </label>
               <input
                 type="text"
@@ -312,7 +319,7 @@ function FBARForm() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Currency
+                      Original Currency
                     </label>
                     <select
                       value={account.currency}
@@ -379,14 +386,15 @@ function FBARForm() {
                     Name of Institution
                   </label>
                   <input
-                    ref={el => inputRefs.current[account.id] = el}
-                    type="text"
-                    value={account.institutionName}
-                    onChange={(e) => updateAccount(account.id, 'institutionName', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-[#002F4A] focus:border-[#002F4A]"
-                    placeholder={isManualEntry ? "Enter institution name" : "Start typing to search..."}
-                    required
-                  />
+  ref={el => inputRefs.current[account.id] = el}
+  type="text"
+  value={account.institutionName}
+  onChange={(e) => updateAccount(account.id, 'institutionName', e.target.value)}
+  onKeyDown={handleInstitutionKeyDown}
+  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-[#002F4A] focus:border-[#002F4A]"
+  placeholder={isManualEntry ? "Enter institution name" : "Start typing to search..."}
+  required
+/>
                 </div>
 
                 <div>
@@ -429,7 +437,7 @@ function FBARForm() {
 
           <div className="text-center mt-8">
             <button 
-              type="submit"
+            onClick={handleSubmit}
               disabled={isSubmitting}
               className={`bg-[#002F4A] text-white px-8 py-4 rounded-lg font-semibold 
                       text-lg transition-colors duration-200 

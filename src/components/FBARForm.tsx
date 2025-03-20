@@ -91,6 +91,7 @@ function FBARForm() {
   };
 
   const calculateUSDValue = (amount: number, currency: string): number => {
+    //@ts-ignore
     const rate = exchangeRates[currency] || 1;
     return amount / rate;
   };
@@ -199,7 +200,7 @@ function FBARForm() {
       e.preventDefault();
     }
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

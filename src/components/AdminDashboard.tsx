@@ -246,7 +246,7 @@ function AdminDashboard() {
 
     const colWidths = Object.keys(selectedData[0] || {}).map(key => ({
       wch: Math.max(key.length, 
-        ...selectedData.map(row => String(row[key]).length)
+        ...selectedData.map(row => String(row[key as keyof typeof row]).length)
       )
     }));
     ws['!cols'] = colWidths;

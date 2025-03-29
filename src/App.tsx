@@ -1,10 +1,10 @@
-import React from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
-import { Shield, CheckCircle, AlertCircle } from 'lucide-react';
+import { Shield, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
 import FBARForm from './components/FBARForm';
 import ThankYou from './components/ThankYou';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
+import ResumeForm from './components/ResumeForm';
 
 function Welcome() {
   const navigate = useNavigate();
@@ -92,14 +92,28 @@ function Welcome() {
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => navigate('/form')}
-                  className="w-full bg-[#002F4A] text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-semibold 
-                            text-base sm:text-lg hover:bg-[#00304A] transition-colors duration-200 
-                            shadow-lg hover:shadow-xl"
-                >
-                  Start Now
-                </button>
+                <div className="space-y-3">
+                  <button 
+                    onClick={() => navigate('/form')}
+                    className="w-full bg-[#002F4A] text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-semibold 
+                              text-base sm:text-lg hover:bg-[#00304A] transition-colors duration-200 
+                              shadow-lg hover:shadow-xl"
+                  >
+                    Start Now
+                  </button>
+
+                  <button 
+                    onClick={() => navigate('/resume')}
+                    className="w-full bg-white border-2 border-[#002F4A] text-[#002F4A] px-6 sm:px-8 py-3 sm:py-4 
+                              rounded-lg font-semibold text-base sm:text-lg hover:bg-gray-50 
+                              transition-colors duration-200 shadow-lg hover:shadow-xl 
+                              flex items-center justify-center"
+                  >
+                    <ArrowRight className="mr-2 h-5 w-5" />
+                    Continue Saved Form
+                  </button>
+                </div>
+
                 <p className="mt-3 sm:mt-4 text-sm text-gray-600 text-center">
                   Estimated completion time: 10-15 minutes
                 </p>
@@ -118,6 +132,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/form" element={<FBARForm />} />
+        <Route path="/resume" element={<ResumeForm />} />
         <Route path="/thank-you" element={<ThankYou />} />
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />

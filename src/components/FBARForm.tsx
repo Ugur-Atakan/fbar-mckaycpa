@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader } from '@googlemaps/js-api-loader';
-import { PlusCircle, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { PlusCircle, AlertCircle, RefreshCw, Trash2, Save, Copy, CheckCircle2 } from 'lucide-react';
 import { db } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 
 interface BankAccount {
   id: string;
@@ -59,8 +59,35 @@ const convertTurkishToEnglish = (text: string): string => {
   return text.replace(/[ıİğĞüÜşŞöÖçÇ]/g, letter => turkishChars[letter] || letter);
 };
 
+function CopyButton({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={`p-2 rounded-full transition-colors duration-200 ${
+        copied ? 'text-green-600 bg-green-50' : 'text-gray-500 hover:bg-gray-100'
+      }`}
+      title="Copy code"
+    >
+      {copied ? <CheckCircle2 className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+    </button>
+  );
+}
+
 function FBARForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [companyName, setCompanyName] = useState('');
   const [accounts, setAccounts] = useState<BankAccount[]>([{
     id: Date.now().toString(),
@@ -75,26 +102,30 @@ function FBARForm() {
   const [mapsError, setMapsError] = useState<string>('');
   const [isManualEntry, setIsManualEntry] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string>('');
+  const [showResumeCode, setShowResumeCode] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState<string>('');
+  const [draftId, setDraftId] = useState<string | null>(null);
   const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
-  const formatNumber = (value: string): string => {
-    const cleanValue = value.replace(/[^\d.]/g, '');
-    const [integerPart, decimalPart] = cleanValue.split('.');
-    const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return decimalPart ? `${formattedInteger}.${decimalPart}` : formattedInteger;
-  };
-
-  const handleMaxValueChange = (id: string, value: string) => {
-    const numericValue = parseFloat(value.replace(/,/g, '')) || 0;
-    updateAccount(id, 'maxValue', numericValue);
-  };
-
-  const calculateUSDValue = (amount: number, currency: string): number => {
-    //@ts-ignore
-    const rate = exchangeRates[currency] || 1;
-    return amount / rate;
-  };
+  useEffect(() => {
+    const resumeData = location.state?.resumeData;
+    if (resumeData) {
+      setCompanyName(resumeData.companyName || '');
+      setAccounts(resumeData.accounts || [{
+        id: Date.now().toString(),
+        type: '',
+        currency: '',
+        accountNumber: '',
+        maxValue: 0,
+        usdValue: 0,
+        institutionName: '',
+        mailingAddress: ''
+      }]);
+      setDraftId(resumeData.id || null);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -153,6 +184,60 @@ function FBARForm() {
     });
   }, [accounts.length]);
 
+  const formatNumber = (value: string): string => {
+    const cleanValue = value.replace(/[^\d.]/g, '');
+    const [integerPart, decimalPart] = cleanValue.split('.');
+    const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return decimalPart ? `${formattedInteger}.${decimalPart}` : formattedInteger;
+  };
+
+  const handleMaxValueChange = (id: string, value: string) => {
+    const numericValue = parseFloat(value.replace(/,/g, '')) || 0;
+    updateAccount(id, 'maxValue', numericValue);
+  };
+
+  const calculateUSDValue = (amount: number, currency: string): number => {
+    const rate = exchangeRates[currency] || 1;
+    return amount / rate;
+  };
+
+  const generateResumeCode = () => {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  };
+
+  const handleSaveForLater = async () => {
+    setError('');
+    setIsSaving(true);
+
+    try {
+      const resumeCode = generateResumeCode();
+      
+      const codeQuery = query(collection(db, 'fbar_drafts'), where('resumeCode', '==', resumeCode));
+      const codeSnapshot = await getDocs(codeQuery);
+      
+      if (!codeSnapshot.empty) {
+        handleSaveForLater();
+        return;
+      }
+
+      const draftData = {
+        companyName,
+        accounts,
+        resumeCode,
+        createdAt: new Date()
+      };
+
+      await addDoc(collection(db, 'fbar_drafts'), draftData);
+      setGeneratedCode(resumeCode);
+      setShowResumeCode(true);
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      setError('An error occurred while saving the form. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const addNewAccount = () => {
     setAccounts([...accounts, {
       id: Date.now().toString(),
@@ -195,7 +280,6 @@ function FBARForm() {
   };
 
   const handleInstitutionKeyDown = (e: React.KeyboardEvent) => {
-    // Prevent form submission when Enter is pressed in the autocomplete field
     if (e.key === 'Enter') {
       e.preventDefault();
     }
@@ -225,6 +309,15 @@ function FBARForm() {
       };
 
       await addDoc(collection(db, 'fbar_submissions'), submissionData);
+
+      if (draftId) {
+        try {
+          await deleteDoc(doc(db, 'fbar_drafts', draftId));
+        } catch (error) {
+          console.error('Error deleting draft:', error);
+        }
+      }
+
       navigate('/thank-you');
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -242,6 +335,43 @@ function FBARForm() {
           className="h-12 mx-auto mb-8"
         />
         
+        {showResumeCode && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+              <h2 className="text-2xl font-bold text-[#002F4A] mb-4">Save Your Progress</h2>
+              <p className="text-gray-600 mb-6">
+                Please save this 4-digit code to continue your form later. You can use this code anytime to resume where you left off.
+              </p>
+              <div className="bg-gray-50 border border-gray-200 p-6 rounded-lg mb-6">
+                <p className="text-sm text-gray-600 mb-2">Your Resume Code:</p>
+                <div className="flex items-center justify-center space-x-2 mb-4">
+                  <p className="text-4xl font-mono font-bold tracking-wider text-[#002F4A]">
+                    {generatedCode}
+                  </p>
+                  <CopyButton code={generatedCode} />
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                  <p className="text-sm text-yellow-800 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                    Make sure to save this code before closing - you won't be able to see it again!
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowResumeCode(false);
+                    navigate('/');
+                  }}
+                  className="bg-[#002F4A] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#00304A] transition-colors duration-200"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-xl p-8">
           <h1 className="text-3xl font-bold text-[#002F4A] mb-6">FBAR Information Form</h1>
           
@@ -249,7 +379,7 @@ function FBARForm() {
             <h2 className="text-xl font-semibold text-[#111828] mb-4">Company Information</h2>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company/Individual Name
+                Company/Individual Name
               </label>
               <input
                 type="text"
@@ -387,15 +517,15 @@ function FBARForm() {
                     Name of Institution
                   </label>
                   <input
-  ref={el => inputRefs.current[account.id] = el}
-  type="text"
-  value={account.institutionName}
-  onChange={(e) => updateAccount(account.id, 'institutionName', e.target.value)}
-  onKeyDown={handleInstitutionKeyDown}
-  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-[#002F4A] focus:border-[#002F4A]"
-  placeholder={isManualEntry ? "Enter institution name" : "Start typing to search..."}
-  required
-/>
+                    ref={el => inputRefs.current[account.id] = el}
+                    type="text"
+                    value={account.institutionName}
+                    onChange={(e) => updateAccount(account.id, 'institutionName', e.target.value)}
+                    onKeyDown={handleInstitutionKeyDown}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-[#002F4A] focus:border-[#002F4A]"
+                    placeholder={isManualEntry ? "Enter institution name" : "Start typing to search..."}
+                    required
+                  />
                 </div>
 
                 <div>
@@ -436,9 +566,9 @@ function FBARForm() {
             </div>
           )}
 
-          <div className="text-center mt-8">
+          <div className="flex justify-center space-x-4 mt-8">
             <button 
-            onClick={handleSubmit}
+              onClick={handleSubmit}
               disabled={isSubmitting}
               className={`bg-[#002F4A] text-white px-8 py-4 rounded-lg font-semibold 
                       text-lg transition-colors duration-200 
@@ -454,6 +584,29 @@ function FBARForm() {
                 </span>
               ) : (
                 'Submit FBAR Information'
+              )}
+            </button>
+
+            <button 
+              onClick={handleSaveForLater}
+              disabled={isSaving}
+              className={`bg-white border-2 border-[#002F4A] text-[#002F4A] px-8 py-4 rounded-lg font-semibold 
+                      text-lg transition-colors duration-200 
+                      shadow-lg hover:shadow-xl flex items-center justify-center
+                      ${isSaving 
+                        ? 'opacity-75 cursor-not-allowed' 
+                        : 'hover:bg-gray-50'}`}
+            >
+              {isSaving ? (
+                <span className="flex items-center justify-center">
+                  <RefreshCw className="animate-spin -ml-1 mr-3 h-5 w-5" />
+                  Saving...
+                </span>
+              ) : (
+                <>
+                  <Save className="mr-2 h-5 w-5" />
+                  Save for Later
+                </>
               )}
             </button>
           </div>
